@@ -1,3 +1,6 @@
+ADMIN_PASSWORD = "123"  # change this to something strong
+
+
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
@@ -9,6 +12,7 @@ from schemas import AccessRequestCreate, VerifyCodeRequest, VerifyCodeResponse
 from email_service import send_admin_request_email, send_user_code_email
 from fastapi import Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import Query
 
 
 app = FastAPI()
@@ -29,7 +33,11 @@ def generate_code() -> str:
 
 
 @app.get("/admin", response_class=HTMLResponse)
-def admin_page(db: Session = Depends(get_db)):
+
+@app.get("/admin", response_class=HTMLResponse)
+def admin_page(password: str = Query(...), db: Session = Depends(get_db)):
+    if password != ADMIN_PASSWORD:
+        return HTMLResponse(content="<h2>Unauthorized</h2>", status_code=403)
     requests = db.query(AccessRequest).order_by(
         AccessRequest.request_status.desc(),
         AccessRequest.created_at.desc()
@@ -50,18 +58,21 @@ def admin_page(db: Session = Depends(get_db)):
         if r.request_status == "pending":
             action_buttons = f"""
                 <form method="post" action="/admin/approve-web" style="display:inline;">
+                    <input type="hidden" name="password" value="{ADMIN_PASSWORD}">
                     <input type="hidden" name="email" value="{r.email}">
                     <input type="hidden" name="duration_months" value="3">
                     <button class="btn3" type="submit">3 Months</button>
                 </form>
 
                 <form method="post" action="/admin/approve-web" style="display:inline;">
+                    <input type="hidden" name="password" value="{ADMIN_PASSWORD}">
                     <input type="hidden" name="email" value="{r.email}">
                     <input type="hidden" name="duration_months" value="6">
                     <button class="btn6" type="submit">6 Months</button>
                 </form>
 
                 <form method="post" action="/admin/approve-web" style="display:inline;">
+                    <input type="hidden" name="password" value="{ADMIN_PASSWORD}">
                     <input type="hidden" name="email" value="{r.email}">
                     <input type="hidden" name="duration_months" value="12">
                     <button class="btn12" type="submit">1 Year</button>
@@ -304,6 +315,14 @@ async def approve_access(email: str, duration_months: int, db: Session = Depends
 
 
 @app.post("/admin/approve-web")
+async def approve_access_web(
+    password: str = Form(...),
+    email: str = Form(...),
+    duration_months: int = Form(...),
+    db: Session = Depends(get_db)
+):
+    if password != ADMIN_PASSWORD:
+        return RedirectResponse(url="/admin?password=wrong", status_code=303)
 async def approve_access_web(
     email: str = Form(...),
     duration_months: int = Form(...),
