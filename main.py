@@ -7,8 +7,13 @@ from database import Base, engine, SessionLocal
 from models import AccessRequest
 from schemas import AccessRequestCreate, VerifyCodeRequest, VerifyCodeResponse
 from email_service import send_admin_request_email, send_user_code_email
+from fastapi import Request, Form
+from fastapi.responses import HTMLResponse, RedirectResponse
+
 
 app = FastAPI()
+
+
 
 Base.metadata.create_all(bind=engine)
 
@@ -21,6 +26,150 @@ def get_db():
 
 def generate_code() -> str:
     return str(random.randint(100000, 999999))
+
+
+@app.get("/admin", response_class=HTMLResponse)
+def admin_page(db: Session = Depends(get_db)):
+    requests = db.query(AccessRequest).order_by(
+        AccessRequest.created_at.desc()
+    ).all()
+
+    rows = ""
+
+    for r in requests:
+        approved_at = r.approved_at if r.approved_at else "-"
+        used = "Yes" if r.is_used else "No"
+
+        if r.request_status == "pending":
+            action_buttons = f"""
+                <form method="post" action="/admin/approve-web" style="display:inline;">
+                    <input type="hidden" name="email" value="{r.email}">
+                    <input type="hidden" name="duration_months" value="3">
+                    <button class="btn3" type="submit">3 Months</button>
+                </form>
+
+                <form method="post" action="/admin/approve-web" style="display:inline;">
+                    <input type="hidden" name="email" value="{r.email}">
+                    <input type="hidden" name="duration_months" value="6">
+                    <button class="btn6" type="submit">6 Months</button>
+                </form>
+
+                <form method="post" action="/admin/approve-web" style="display:inline;">
+                    <input type="hidden" name="email" value="{r.email}">
+                    <input type="hidden" name="duration_months" value="12">
+                    <button class="btn12" type="submit">1 Year</button>
+                </form>
+            """
+        else:
+            action_buttons = "<span class='disabled'>No action</span>"
+
+        rows += f"""
+            <tr>
+                <td>{r.email}</td>
+                <td class="{r.request_status}">{r.request_status}</td>
+                <td>{used}</td>
+                <td>{r.created_at}</td>
+                <td>{approved_at}</td>
+                <td>{action_buttons}</td>
+            </tr>
+        """
+
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Panel Status Admin</title>
+        <style>
+            body {{
+                font-family: Arial, sans-serif;
+                background: #f5f7fa;
+                padding: 30px;
+            }}
+
+            h1 {{
+                color: #17345D;
+            }}
+
+            table {{
+                width: 100%;
+                border-collapse: collapse;
+                background: white;
+            }}
+
+            th, td {{
+                padding: 12px;
+                border-bottom: 1px solid #ddd;
+                text-align: left;
+            }}
+
+            th {{
+                background: #17345D;
+                color: white;
+            }}
+
+            .pending {{
+                color: #c77700;
+                font-weight: bold;
+            }}
+
+            .approved {{
+                color: green;
+                font-weight: bold;
+            }}
+
+            button {{
+                padding: 8px 12px;
+                margin: 2px;
+                border: none;
+                border-radius: 6px;
+                cursor: pointer;
+                color: white;
+            }}
+
+            .btn3 {{
+                background: #2F4E7A;
+            }}
+
+            .btn6 {{
+                background: #6E9C63;
+            }}
+
+            .btn12 {{
+                background: #C8A24F;
+                color: black;
+            }}
+
+            .disabled {{
+                color: #888;
+            }}
+        </style>
+    </head>
+    <body>
+
+        <h1>Panel Status License Requests</h1>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Email</th>
+                    <th>Status</th>
+                    <th>Used</th>
+                    <th>Created At</th>
+                    <th>Approved At</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {rows}
+            </tbody>
+        </table>
+
+    </body>
+    </html>
+    """
+
+    return HTMLResponse(content=html)
+
 
 @app.post("/request-access")
 async def request_access(payload: AccessRequestCreate, db: Session = Depends(get_db)):
@@ -81,6 +230,51 @@ async def approve_access(email: str, duration_months: int, db: Session = Depends
     await send_user_code_email(email, code, duration_label)
 
     return {"message": f"Approved {email} for {duration_label}."}
+
+
+
+@app.post("/admin/approve-web")
+async def approve_access_web(
+    email: str = Form(...),
+    duration_months: int = Form(...),
+    db: Session = Depends(get_db)
+):
+    request_row = db.query(AccessRequest).filter(
+        AccessRequest.email == email,
+        AccessRequest.request_status == "pending"
+    ).order_by(AccessRequest.created_at.desc()).first()
+
+    if not request_row:
+        return RedirectResponse(url="/admin", status_code=303)
+
+    code = generate_code()
+    now = datetime.utcnow()
+    code_expires_at = now + timedelta(minutes=30)
+
+    if duration_months == 3:
+        access_expires_at = now + timedelta(days=90)
+        duration_label = "3 months"
+    elif duration_months == 6:
+        access_expires_at = now + timedelta(days=180)
+        duration_label = "6 months"
+    elif duration_months == 12:
+        access_expires_at = now + timedelta(days=365)
+        duration_label = "1 year"
+    else:
+        return RedirectResponse(url="/admin", status_code=303)
+
+    request_row.code = code
+    request_row.request_status = "approved"
+    request_row.code_expires_at = code_expires_at
+    request_row.access_expires_at = access_expires_at
+    request_row.approved_at = now
+
+    db.commit()
+
+    await send_user_code_email(email, code, duration_label)
+
+    return RedirectResponse(url="/admin", status_code=303)
+
 
 @app.post("/verify-code", response_model=VerifyCodeResponse)
 async def verify_code(payload: VerifyCodeRequest, db: Session = Depends(get_db)):

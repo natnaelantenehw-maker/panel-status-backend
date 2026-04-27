@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Panel Status Admin</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f7fa;
+            padding: 30px;
+        }
+
+        h1 {
+            color: #17345D;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+
+        th, td {
+            padding: 12px;
+            border-bottom: 1px solid #ddd;
+            text-align: left;
+        }
+
+        th {
+            background: #17345D;
+            color: white;
+        }
+
+        .pending {
+            color: #c77700;
+            font-weight: bold;
+        }
+
+        .approved {
+            color: green;
+            font-weight: bold;
+        }
+
+        .used {
+            color: #555;
+        }
+
+        button {
+            padding: 8px 12px;
+            margin: 2px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            color: white;
+        }
+
+        .btn3 {
+            background: #2F4E7A;
+        }
+
+        .btn6 {
+            background: #6E9C63;
+        }
+
+        .btn12 {
+            background: #C8A24F;
+            color: black;
+        }
+
+        .disabled {
+            color: #888;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Panel Status License Requests</h1>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Email</th>
+                <th>Status</th>
+                <th>Used</th>
+                <th>Created At</th>
+                <th>Approved At</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for request in requests %}
+            <tr>
+                <td>{{ request.email }}</td>
+
+                <td>
+                    {% if request.request_status == "pending" %}
+                    <span class="pending">Pending</span>
+                    {% elif request.request_status == "approved" %}
+                    <span class="approved">Approved</span>
+                    {% else %}
+                    {{ request.request_status }}
+                    {% endif %}
+                </td>
+
+                <td>
+                    {% if request.is_used %}
+                    Yes
+                    {% else %}
+                    No
+                    {% endif %}
+                </td>
+
+                <td>{{ request.created_at }}</td>
+                <td>{{ request.approved_at or "-" }}</td>
+
+                <td>
+                    {% if request.request_status == "pending" %}
+                    <form method="post" action="/admin/approve-web" style="display:inline;">
+                        <input type="hidden" name="email" value="{{ request.email }}">
+                        <input type="hidden" name="duration_months" value="3">
+                        <button class="btn3" type="submit">3 Months</button>
+                    </form>
+
+                    <form method="post" action="/admin/approve-web" style="display:inline;">
+                        <input type="hidden" name="email" value="{{ request.email }}">
+                        <input type="hidden" name="duration_months" value="6">
+                        <button class="btn6" type="submit">6 Months</button>
+                    </form>
+
+                    <form method="post" action="/admin/approve-web" style="display:inline;">
+                        <input type="hidden" name="email" value="{{ request.email }}">
+                        <input type="hidden" name="duration_months" value="12">
+                        <button class="btn12" type="submit">1 Year</button>
+                    </form>
+                    {% else %}
+                    <span class="disabled">No action</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+</body>
+</html>

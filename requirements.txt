@@ -3,3 +3,5 @@ uvicorn
 sqlalchemy
 email-validator
 aiosmtplib
+jinja2
+python-multipart
