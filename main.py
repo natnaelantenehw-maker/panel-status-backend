@@ -32,7 +32,7 @@ def generate_code() -> str:
     return str(random.randint(100000, 999999))
 
 
-@app.get("/admin", response_class=HTMLResponse)
+
 
 @app.get("/admin", response_class=HTMLResponse)
 def admin_page(password: str = Query(...), db: Session = Depends(get_db)):
@@ -322,19 +322,15 @@ async def approve_access_web(
     db: Session = Depends(get_db)
 ):
     if password != ADMIN_PASSWORD:
-        return RedirectResponse(url="/admin?password=wrong", status_code=303)
-async def approve_access_web(
-    email: str = Form(...),
-    duration_months: int = Form(...),
-    db: Session = Depends(get_db)
-):
+        return HTMLResponse(content="<h2>Unauthorized</h2>", status_code=403)
+
     request_row = db.query(AccessRequest).filter(
         AccessRequest.email == email,
         AccessRequest.request_status == "pending"
     ).order_by(AccessRequest.created_at.desc()).first()
 
     if not request_row:
-        return RedirectResponse(url="/admin", status_code=303)
+        return RedirectResponse(url=f"/admin?password={password}", status_code=303)
 
     code = generate_code()
     now = datetime.utcnow()
@@ -350,7 +346,7 @@ async def approve_access_web(
         access_expires_at = now + timedelta(days=365)
         duration_label = "1 year"
     else:
-        return RedirectResponse(url="/admin", status_code=303)
+        return RedirectResponse(url=f"/admin?password={password}", status_code=303)
 
     request_row.code = code
     request_row.request_status = "approved"
@@ -362,7 +358,7 @@ async def approve_access_web(
 
     await send_user_code_email(email, code, duration_label)
 
-    return RedirectResponse(url="/admin", status_code=303)
+    return RedirectResponse(url=f"/admin?password={password}", status_code=303)
 
 
 @app.post("/verify-code", response_model=VerifyCodeResponse)
