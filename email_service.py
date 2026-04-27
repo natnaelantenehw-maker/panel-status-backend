@@ -1,13 +1,13 @@
+import os
 import aiosmtplib
 from email.message import EmailMessage
 
 SMTP_HOST = "smtp.gmail.com"
 SMTP_PORT = 587
 
-SMTP_USER = "peterdivine31@gmail.com"
-SMTP_PASS = "tqpt ntdb kpko tecs"
-
-ADMIN_EMAIL = "peterdivine31@gmail.com"
+SMTP_USER = os.getenv("SMTP_USER")
+SMTP_PASS = os.getenv("SMTP_PASS")
+ADMIN_EMAIL = os.getenv("ADMIN_EMAIL")
 
 
 async def send_email(to_email: str, subject: str, body: str):
