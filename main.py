@@ -31,14 +31,21 @@ def generate_code() -> str:
 @app.get("/admin", response_class=HTMLResponse)
 def admin_page(db: Session = Depends(get_db)):
     requests = db.query(AccessRequest).order_by(
+        AccessRequest.request_status.desc(),
         AccessRequest.created_at.desc()
     ).all()
+
+    total_count = len(requests)
+    pending_count = len([r for r in requests if r.request_status == "pending"])
+    approved_count = len([r for r in requests if r.request_status == "approved"])
+    used_count = len([r for r in requests if r.is_used])
 
     rows = ""
 
     for r in requests:
         approved_at = r.approved_at if r.approved_at else "-"
         used = "Yes" if r.is_used else "No"
+        row_style = "background-color: #fff8e1;" if r.request_status == "pending" else ""
 
         if r.request_status == "pending":
             action_buttons = f"""
@@ -64,7 +71,7 @@ def admin_page(db: Session = Depends(get_db)):
             action_buttons = "<span class='disabled'>No action</span>"
 
         rows += f"""
-            <tr>
+            <tr style="{row_style}">
                 <td>{r.email}</td>
                 <td class="{r.request_status}">{r.request_status}</td>
                 <td>{used}</td>
@@ -87,6 +94,47 @@ def admin_page(db: Session = Depends(get_db)):
             }}
 
             h1 {{
+                color: #17345D;
+            }}
+
+            .top-bar {{
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 18px;
+            }}
+
+            .refresh-btn {{
+                background: #17345D;
+                color: white;
+                padding: 10px 16px;
+                border: none;
+                border-radius: 8px;
+                cursor: pointer;
+            }}
+
+            .stats {{
+                display: flex;
+                gap: 12px;
+                margin-bottom: 18px;
+            }}
+
+            .stat-card {{
+                background: white;
+                padding: 14px 18px;
+                border-radius: 10px;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+                min-width: 140px;
+            }}
+
+            .stat-label {{
+                font-size: 13px;
+                color: #666;
+            }}
+
+            .stat-value {{
+                font-size: 24px;
+                font-weight: bold;
                 color: #17345D;
             }}
 
@@ -146,7 +194,29 @@ def admin_page(db: Session = Depends(get_db)):
     </head>
     <body>
 
-        <h1>Panel Status License Requests</h1>
+        <div class="top-bar">
+            <h1>Panel Status License Requests</h1>
+            <button class="refresh-btn" onclick="location.reload()">Refresh</button>
+        </div>
+
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-label">Total Requests</div>
+                <div class="stat-value">{total_count}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Pending</div>
+                <div class="stat-value">{pending_count}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Approved</div>
+                <div class="stat-value">{approved_count}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Used Codes</div>
+                <div class="stat-value">{used_count}</div>
+            </div>
+        </div>
 
         <table>
             <thead>
