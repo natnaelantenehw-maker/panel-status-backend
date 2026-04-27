@@ -290,8 +290,8 @@ async def approve_access(email: str, duration_months: int, db: Session = Depends
     code_expires_at = now + timedelta(minutes=30)
 
     if duration_months == 3:
-        access_expires_at = now + timedelta(days=90)
-        duration_label = "3 months"
+        access_expires_at = now + timedelta(minutes=3)
+        duration_label = "3 minutes test"
     elif duration_months == 6:
         access_expires_at = now + timedelta(days=180)
         duration_label = "6 months"
