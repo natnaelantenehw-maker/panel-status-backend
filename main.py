@@ -1,6 +1,7 @@
-ADMIN_PASSWORD = "123"  # change this to something strong
 
 
+import os
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
