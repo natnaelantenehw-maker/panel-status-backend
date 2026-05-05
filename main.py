@@ -305,7 +305,7 @@ async def approve_access(password: str, email: str, duration_months: int, db: Se
 
     # 1. Send email first
     try:
-       await send_user_code_email(email, code, duration_label)
+       send_user_code_email(email, code, duration_label)
     except Exception as e:
        print("Failed to send user code email:", e)
        return HTMLResponse(
@@ -362,7 +362,7 @@ async def approve_access_web(
 
     # 1. Send email first
     try:
-       await send_user_code_email(email, code, duration_label)
+       send_user_code_email(email, code, duration_label)
     except Exception as e:
        print("Failed to send user code email:", e)
        return HTMLResponse(

@@ -5,3 +5,4 @@ email-validator
 aiosmtplib
 jinja2
 python-multipart
+requests

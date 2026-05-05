@@ -1,44 +1,38 @@
 import os
-import aiosmtplib
-from email.message import EmailMessage
+import requests
 
-SMTP_HOST = "smtp.gmail.com"
-SMTP_PORT = 465
-
-SMTP_USER = os.getenv("SMTP_USER")
-SMTP_PASS = os.getenv("SMTP_PASS")
+RESEND_API_KEY = os.getenv("RESEND_API_KEY")
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL")
 
 
-async def send_email(to_email: str, subject: str, body: str):
-    message = EmailMessage()
-    message["From"] = SMTP_USER
-    message["To"] = to_email
-    message["Subject"] = subject
-    message.set_content(body)
+def send_email(to_email: str, subject: str, body: str):
+    url = "https://api.resend.com/emails"
 
-    await aiosmtplib.send(
-        message,
-        hostname=SMTP_HOST,
-        port=SMTP_PORT,
-        use_tls=True,        # ✅ correct for port 465
-        username=SMTP_USER,
-        password=SMTP_PASS,
-        timeout=30           # optional but good
-    )
+    payload = {
+        "from": "onboarding@resend.dev",
+        "to": [to_email],
+        "subject": subject,
+        "text": body
+    }
+
+    headers = {
+        "Authorization": f"Bearer {RESEND_API_KEY}",
+        "Content-Type": "application/json"
+    }
+
+    response = requests.post(url, json=payload, headers=headers)
+
+    if response.status_code != 200:
+        raise Exception(f"Email failed: {response.text}")
 
 
-async def send_admin_request_email(user_email: str):
+def send_admin_request_email(user_email: str):
     subject = "New App Access Request"
     body = f"A new user requested access:\n\nEmail: {user_email}"
-    await send_email(ADMIN_EMAIL, subject, body)
+    send_email(ADMIN_EMAIL, subject, body)
 
 
-async def send_user_code_email(user_email: str, code: str, duration_label: str):
+def send_user_code_email(user_email: str, code: str, duration_label: str):
     subject = "Your App Access Code"
-    body = (
-        f"Your access code is: {code}\n\n"
-        f"Access duration: {duration_label}\n"
-        f"Enter this code in the app."
-    )
-    await send_email(user_email, subject, body)
+    body = f"Your code: {code}\n\nAccess duration: {duration_label}"
+    send_email(user_email, subject, body)
