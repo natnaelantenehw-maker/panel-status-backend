@@ -3,7 +3,7 @@ import aiosmtplib
 from email.message import EmailMessage
 
 SMTP_HOST = "smtp.gmail.com"
-SMTP_PORT = 587
+SMTP_PORT = 465
 
 SMTP_USER = os.getenv("SMTP_USER")
 SMTP_PASS = os.getenv("SMTP_PASS")
@@ -21,9 +21,10 @@ async def send_email(to_email: str, subject: str, body: str):
         message,
         hostname=SMTP_HOST,
         port=SMTP_PORT,
-        start_tls=True,
+        use_tls=True,        # ✅ correct for port 465
         username=SMTP_USER,
         password=SMTP_PASS,
+        timeout=30           # optional but good
     )
 
 
