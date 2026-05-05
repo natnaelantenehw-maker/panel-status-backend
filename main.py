@@ -281,6 +281,8 @@ async def approve_access(password: str, email: str, duration_months: int, db: Se
         AccessRequest.email == email,
         AccessRequest.request_status == "pending"
     ).order_by(AccessRequest.created_at.desc()).first()
+    if password != ADMIN_PASSWORD:
+        raise HTTPException(status_code=403, detail="Unauthorized")
 
     if not request_row:
         raise HTTPException(status_code=404, detail="Pending request not found.")
