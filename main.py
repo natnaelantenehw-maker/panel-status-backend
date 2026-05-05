@@ -276,7 +276,7 @@ async def request_access(payload: AccessRequestCreate, db: Session = Depends(get
     return {"message": "Access request submitted successfully."}
 
 @app.post("/admin/approve")
-async def approve_access(email: str, duration_months: int, db: Session = Depends(get_db)):
+async def approve_access(password: str, email: str, duration_months: int, db: Session = Depends(get_db)):
     request_row = db.query(AccessRequest).filter(
         AccessRequest.email == email,
         AccessRequest.request_status == "pending"
@@ -301,6 +301,17 @@ async def approve_access(email: str, duration_months: int, db: Session = Depends
     else:
         raise HTTPException(status_code=400, detail="Only 3, 6, or 12 months allowed.")
 
+    # 1. Send email first
+    try:
+       await send_user_code_email(email, code, duration_label)
+    except Exception as e:
+       print("Failed to send user code email:", e)
+       return HTMLResponse(
+        content=f"<h2>Email sending failed</h2><p>{e}</p><a href='/admin?password={password}'>Back</a>",
+        status_code=500
+       )
+
+# 2. Only mark approved after email succeeds
     request_row.code = code
     request_row.request_status = "approved"
     request_row.code_expires_at = code_expires_at
@@ -309,9 +320,7 @@ async def approve_access(email: str, duration_months: int, db: Session = Depends
 
     db.commit()
 
-    await send_user_code_email(email, code, duration_label)
-
-    return {"message": f"Approved {email} for {duration_label}."}
+    return RedirectResponse(url=f"/admin?password={password}", status_code=303)
 
 
 
@@ -349,6 +358,17 @@ async def approve_access_web(
     else:
         return RedirectResponse(url=f"/admin?password={password}", status_code=303)
 
+    # 1. Send email first
+    try:
+       await send_user_code_email(email, code, duration_label)
+    except Exception as e:
+       print("Failed to send user code email:", e)
+       return HTMLResponse(
+         content=f"<h2>Email sending failed</h2><p>{e}</p><a href='/admin?password={password}'>Back</a>",
+         status_code=500
+       )
+
+# 2. Only mark approved after email succeeds
     request_row.code = code
     request_row.request_status = "approved"
     request_row.code_expires_at = code_expires_at
@@ -356,8 +376,6 @@ async def approve_access_web(
     request_row.approved_at = now
 
     db.commit()
-
-    await send_user_code_email(email, code, duration_label)
 
     return RedirectResponse(url=f"/admin?password={password}", status_code=303)
 
